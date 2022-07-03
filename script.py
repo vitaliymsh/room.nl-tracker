@@ -5,7 +5,8 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
 
 URL = 'https://studentenplatformapi.hexia.io/api/v1/actueel-aanbod?limit=5000&locale=en_GB&page=0&sort=-publicationDate'
 TOKEN = '5521587588:AAEsc7WMcPYi-9ODu2yTos905oijXwccOQM'
-CHAT_ID = None
+OWNER_CHAT_ID = None
+CHAT_IDS = []
 TIME = 60
 LISTINGS = set()
 
@@ -16,12 +17,16 @@ logging.basicConfig(
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global CHAT_ID
-    if CHAT_ID is None:
-        CHAT_ID = update.effective_chat.id
-        await context.bot.send_message(chat_id=CHAT_ID, text="User registered.")
+    global OWNER_CHAT_ID
+    if OWNER_CHAT_ID is None:
+        OWNER_CHAT_ID = update.effective_chat.id
+        CHAT_IDS.append(OWNER_CHAT_ID)
+        await context.bot.send_message(chat_id=OWNER_CHAT_ID, text="Owner registered.")
     else:
-        await context.bot.send_message(chat_id=CHAT_ID, text="Someone else is trying to use the bot!")
+        chat_id = update.effective_message.chat_id
+        CHAT_IDS.append(chat_id)
+        await context.bot.send_message(chat_id=chat_id, text="Registered as a user!")
+        await context.bot.send_message(chat_id=OWNER_CHAT_ID, text="Someone else using the bot!")
 
 async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send the alarm message."""
@@ -37,8 +42,11 @@ async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
                     temp_data.append([f"https://www.room.nl/en/offerings/to-rent/details/{item['urlKey']}", str(item['publicationDate'])])
     temp_data.sort(key=lambda x: x[1], reverse=True)
     if len(temp_data) != 0:
-        for listing in temp_data:
-            await context.bot.send_message(job.chat_id, text='\n'.join(listing))
+        for chat_id in CHAT_IDS:
+            for i in range(3):
+                await context.bot.send_message(chat_id, text="NEW LISTINGS FOUND!!!")
+            for listing in temp_data:
+                await context.bot.send_message(chat_id, text='\n'.join(listing))
     context.job_queue.run_once(alarm, TIME, chat_id=job.chat_id, name=str(job.chat_id), data=TIME)
 
 
@@ -72,8 +80,8 @@ async def set_timer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def unset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.message.chat_id
-    if chat_id == CHAT_ID:
-        job_removed = remove_job_if_exists(str(CHAT_ID), context)
+    if chat_id == OWNER_CHAT_ID:
+        job_removed = remove_job_if_exists(str(OWNER_CHAT_ID), context)
         text = "Timer successfully cancelled!" if job_removed else "You have no active timer."
     else:
         text = "You are not the owner"
