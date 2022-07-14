@@ -36,10 +36,11 @@ async def alarm(context: ContextTypes.DEFAULT_TYPE) -> None:
     with urllib.request.urlopen(URL) as page:
         data = json.loads(page.read().decode())
         for item in data['data']:
-            if item['city']['name'] == 'Delft' and int(item['publicationDate'][6]) >= 7:
+            if item['city']['name'] in ['Delft', 'Den Haag'] and int(item['publicationDate'][6]) >= 7:
                 if not item['ID'] in LISTINGS:
                     LISTINGS.add(item['ID'])
                     temp_data.append([f"https://www.room.nl/en/offerings/to-rent/details/{item['urlKey']}", str(item['publicationDate'])])
+
     temp_data.sort(key=lambda x: x[1], reverse=True)
     if len(temp_data) != 0:
         for chat_id in CHAT_IDS:
